@@ -69,7 +69,15 @@ your web site and blog:
 
 ## Configuration Options
 
-* `mode` - 
+* `speed` (default: 'slow') - The speed at which animations occur.
+
+* `entryId` (default: null) - The entry ID for which the comment is in reply. This should be embedded in the source comment form. But if it is not, then specify this to have mtcomment forcibly set the `entry_id` form parameter upon form submit.
+
+* `formSource` (default: '#comments-form') - The selector to the comment form source. This will serve as the template for the ajax comment form that will be automatically generated for you.
+
+* `formClass` (default: 'ajax-comments-form') - This class name of the form that will be created for you.
+
+* `leaveCommentMsg` (default: 'Leave a comment...') - This is the text that will appear in the comment box by default. The text will disappear when the user clicks inside the text area to leave a comment.
 
 ## Events and Callbacks
 
