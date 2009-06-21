@@ -1,0 +1,82 @@
+# Overview
+
+This plugin provides a jQuery interface for inline AJAX commenting
+for a blog powered by Movable Type, although a design goal is for
+this plugin to be broadly applicable to any blogging platform
+(e.g. WordPress, Drupal, etc). 
+
+# Getting Started
+
+Before you begin, make sure you have a copy of jQuery 1.3 or 
+greater installed on your system/website. You will need to include 
+this in your web page or Movable Type templates:
+
+   <script type="text/javascript" src="jquery-1.3.1.js"></script>
+
+You will also need the following jQuery plugins or libaries:
+
+* jquery-mtgreet - http://github.com/byrnereese/jquery-mtgreet/tree
+* jquery-form - bundled with Movable Type
+
+## Add Your Script Tags
+
+Add this code to the header of your web site.
+
+    <script type="text/javascript" src="mt.js"></script>
+    <script type="text/javascript" src="jquery.mtauth.js"></script>
+    <script type="text/javascript" src="jquery.mtgreeting.js"></script>
+    <script type="text/javascript" src="jquery.mtcomment.js"></script>
+
+Note: you may need to adjust the paths to each of the scripts above
+depending upon where they are located on your web server.
+
+Note: it may not be obvious, but this also assumes you also reference
+jQuery and other prerequisites. Like so:
+
+    <script type="text/javascript" 
+       src="<$mt:StaticWebPath$>jquery/jquery.js"></script>
+    <script type="text/javascript" 
+       src="<$mt:StaticWebPath$>jquery/jquery.form.js"></script>
+
+## Edit Your Web Page
+
+Now let's look at some actual HTML and javascript that you can use on 
+your web site and blog:
+
+    <html>
+      <head>
+        <script type="text/javascript" src="mt.js"></script>
+        <script type="text/javascript" src="jquery.js"></script>
+        <script type="text/javascript" src="jquery.mtauth.js"></script>
+        <script type="text/javascript" src="jquery.mtgreeting.js"></script>
+        <script type="text/javascript">
+        $(document).ready(function() {
+          $('.reply').reply();
+        });
+        </script>
+      </head>
+      <body>
+        <div id="comments">
+          <div class="comment">
+            <p>My comment text goes here.</p>
+            <p><a href="#" class="reply">Reply</a></p>
+          </div>
+        </div>
+      </body>
+    </html>
+
+# Usage
+
+## Configuration Options
+
+* `mode` - 
+
+## Events and Callbacks
+
+TODO
+
+# License and Copyright
+
+Copyright 2009, Byrne Reese. All rights reserved.
+
+This plugin is licensed under the same terms as jQuery itself. 
