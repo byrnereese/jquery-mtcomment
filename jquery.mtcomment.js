@@ -1,3 +1,6 @@
+/*
+ * jQuery Commenting Plugin for Movable Type
+ */
 (function($){
   $.fn.ajaxSubmit.debug = true;
   $.fn.commentForm = function(options) {
@@ -9,34 +12,73 @@
       insertMethod: 'append',
       replySelector: 'a.reply',
       onSuccess: null,
+      wrapClass: null,
+      loggedInClass: null,
+      loggedOutClass: null,
       target: '#comments-list'
     };
     var settings = $.extend( {}, defaults, options);
-    return this.each(function() {
-        var f = $(this);
-        var id = f.attr('id');
-        var action = f.attr('action');
-        var method = f.attr('method');
+    var source; var fi; var fo;
+    this.each(function() {
+	source = $(this);
+	if (settings.loggedInClass) {
+	  fi = $(this).find(settings.loggedInClass);
+	  $(fi).onauthchange( function(e, u) { 
+	      if (u.is_authenticated) $(this).show();
+	      else $(this).hide();
+	    });
+	} else {
+	  fi = $(this);
+	}
+	if (settings.loggedOutClass) {
+	  fo = $(this).find(settings.loggedOutClass);
+	  $(fo).onauthchange( function(e, u) { 
+	      if (!u.is_authenticated) $(this).show();
+	      else $(this).hide();
+	    });
+	}
+	
+        var id = fi.attr('id');
+        var action = fi.attr('action');
+        var method = fi.attr('method');
         var entry_id = $('[name=entry_id]').val();
-        if (!entry_id) entry_id = settings.entryId;
+
         // TODO - bail if no entry_id specified?
+        if (!entry_id) entry_id = settings.entryId;
         
         // initialize the overlay
-        f.append('<div class="spinner"></div><div class="spinner-status"></div>');
+	// TODO - only initialize if spinner class is not present
+	fi.append('<div class="spinner"></div><div class="spinner-status"></div>');
+
         // clear focus event, and initialize the 'Leave a comment...' message
-        f.find('textarea').unbind('focus').val(settings.leaveCommentMsg).focus( function() { $(this).val(''); } );
+        f.find('textarea').unbind('focus').val(settings.leaveCommentMsg).focus( function() { 
+		if ($(this).val() == settings.leaveCommentMsg) $(this).val(''); 
+        });
         // for now, let's kill the preview button
         // in the future this will only happen when live previews are activated
-        f.find('input.comment-preview').hide();
+        fi.find('input.comment-preview').hide();
         // clear any submit events, so we can make our own
-        //f.unbind('submit');
-        f.submit( function(e){
+        //fi.unbind('submit');
+
+	// Bind auth/unauthed handlers
+	/*
+	// TODO
+	// if user is logged IN then proceed as usual
+	// but if user is logged OUT then execute the logged out callback
+	// Logged out callback should
+	// a) replace the comment form with a login form?
+	// b) show and hide content?
+	*/
+
+	// Bind a submit handler to the form.
+        fi.submit( function(e){
             var form = $(this);
             $(this).find('[name=ajax]').val('1');
             $(this).find('[name=entry_id]').val(entry_id);
             $(this).find('[name=preview]').val('0');
             $(this).find('[name=parent_id]').val(settings.parentId);
             $(this).find('[name=armor]').val(mt.blog.comments.armor);
+	    var spinner_selector = '.spinner, .spinner-status';
             $(this).ajaxSubmit({
               contentType: 'application/x-www-form-urlencoded; charset=utf-8',
               iframe: false,
@@ -45,34 +87,51 @@
               clearForm: true,
               beforeSubmit: function(formData, jqForm, options) {
                 var queryString = $.param(formData); // for debugging
-                $('#'+id+' .spinner, #'+id+' .spinner-status').fadeIn('fast').css('height',f.height());
+                fi.find(spinner_selector).fadeIn('fast').css('height',fi.height());
               },
               success: function(responseText, statusText) {
-                  $('#'+id+' .spinner, #'+id+' .spinner-status').fadeOut();
+                  fi.find(spinner_selector).fadeOut();
                   var comment = $(responseText).hide();
                   var cid = comment.attr('id').substr(8);
                   var parent;
-                  if (settings.parentId) {
-                      parent = comment.wrap('<div style="margin-left:20px;" class="comment-replies"></div>').parent();
+                  if (settings.parentId && settings.wrapClass) {
+		      // TODO - make this customizable
+                      parent = comment.wrap('<div id="'+settings.wrapClass+'-'+cid+'" class="'+settings.wrapClass+'"></div>').parent();
                   }
-                  if (settings.insertMethod == 'append') $(settings.target).append(parent ? parent : comment);
-                  if (settings.insertMethod == 'after') $(settings.target).after(parent ? parent : comment);
+                  if (settings.insertMethod == 'append') {
+		      //alert("appending " + (parent ? parent.attr('id') : comment.attr('id')) + " to " + $(settings.target).attr('id'));
+		      $(settings.target).append(parent ? parent : comment);
+		  } else if (settings.insertMethod == 'after') {
+		      //alert("inserting " + (parent ? parent.attr('id') : comment.attr('id')) + " after " + $(settings.target).attr('id'));
+		      $(settings.target).after(parent ? parent : comment);
+		  }
                   if (settings.onSuccess) settings.onSuccess(form,comment,0);
                   else { comment.fadeIn(); }
-                  if (comment.find(settings.replySelector)) {
-                      var opts = $.extend( {}, settings, { parentId: cid, target: comment });
-                      comment.find(settings.replySelector).reply(opts);
+		  var r = comment.find(settings.replySelector);
+                  if (r) {
+		    var opts = $.extend( {}, settings, { 
+		      parentId: cid, 
+                      sourceForm: source,
+                      target: comment
+                    });
+		    r.reply(opts);
                   }
                 }
               });
             return false;
           });
       });
+    return source;
   };
   $.fn.reply = function(options) {
     var defaults = {
       speed: 'slow',
       sourceForm: $('#comments-form'),
+      onReplyClick: null,
+      findParentComment: function(e) { return e.closest('.comment'); },
+      commentInsertMethod: 'after',
+      formInsertMethod: 'after',
+      wrapClass: null,
       target: '#comments-list'
     };
     var self;
@@ -80,7 +139,7 @@
     var clicked = Array();
     var onReplyClick = function() {
       var replyLink = $(this);
-      var pid_e = $(this).closest('.comment');
+      var pid_e = settings.findParentComment( $(this) );
       var pid = pid_e.attr('id').substr(8);
       var pauthor_e = $(this).closest('.byline').find('.vcard.author');
       var pauthor = pauthor_e.html();
@@ -89,31 +148,44 @@
         // 1. clone the source
         var newForm = settings.sourceForm.clone();
         // * making sure the IDs are unique for validity
-        var newid = newForm.attr('id') + '-' + pid;
+        var newid = settings.sourceForm.attr('id') + '-' + pid;
         newForm.hide().attr('id',newid);
-        replyLink.after(newForm);
+	if (settings.formInsertMethod == 'append') replyLink.append(newForm);
+	if (settings.formInsertMethod == 'after')  replyLink.after(newForm);
         // * running "commentForm on it"
         newForm.commentForm({
           parentId: pid,
-          insertMethod: 'after',
+          loggedInClass: settings.loggedInClass,
+          loggedOutClass: settings.loggedOutClass,
+          insertMethod: settings.commentInsertMethod,
+          wrapClass: settings.wrapClass,
           target: pid_e,
           // maybe the comment should be hidden prior to it being shown?
           onSuccess: function(f,c,pid) { 
-              replyLink.removeClass('expanded').addClass('collapsed');
-              f.slideUp('fast', function() { c.slideDown(settings.speed) } );
-            }
+		    f.slideUp('fast', function() { 
+		      c.slideDown(settings.speed, function () {  
+			replyLink.removeClass('expanded').addClass('collapsed');
+	              });
+                    });
+          }
         });
         clicked[pid] = newForm;
-        $(this).addClass('expanded');
-        clicked[pid].slideDown(settings.speed);
+	if (settings.onReplyClick) { 
+	  settings.onReplyClick(newForm,pid_e);
+	}
+        clicked[pid].slideDown(settings.speed, function() {
+		replyLink.addClass('expanded');
+	    });
       } else if (replyLink.hasClass('expanded')) {
-        clicked[pid].slideUp(settings.speed);
-        $(this).removeClass('expanded').addClass('collapsed');
+	  clicked[pid].slideUp(settings.speed, function() {
+		  replyLink.removeClass('expanded').addClass('collapsed');
+	      });
       } else if (replyLink.hasClass('collapsed')) {
-        clicked[pid].slideDown(settings.speed);
-        $(this).addClass('expanded').removeClass('collapsed');
+	  clicked[pid].slideDown(settings.speed, function() {
+		  replyLink.addClass('expanded').removeClass('collapsed');
+	      });
       } else {
-        alert("Fatal error. A form was never initialized for this element.");
+	  //alert("Fatal error. A form was never initialized for this element.");
       }
     };
     return this.each(function() {
