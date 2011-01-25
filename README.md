@@ -83,6 +83,87 @@ your web site and blog:
 
 # Usage and API
 
+## Comment Response Template
+
+In order to enable AJAX commenting on your blog, you need to do the following:
+
+1) Set the comments preference labeled "Enable comment response template" to on. It is located under Tools > Blog Settings.
+
+2) Replace the contents of the Comment Response system template with:
+
+      <mt:Include module="CN: Global Variables">
+      <mt:SetVarBlock name="comment_new"><mt:CommentID></mt:SetVarBlock>
+      <mt:If name="request.ajax">
+        <mt:If name="comment_pending">
+          <mt:Ignore><!-- Pending message when comment is being held for review --></mt:Ignore>
+          <$mt:Var name="message" value="Your comment has been received and held for approval by the blog owner."$>
+        <mt:Else name="comment_error">
+          <mt:Ignore><!-- Error message when comment submission fails --></mt:Ignore>
+          <mt:SetVarBlock name="message">Your comment submission failed for the following reasons:
+          <$mt:ErrorMessage$></mt:SetVarBlock>
+        <mt:Else>
+          <mt:If name="request.json">
+            <mt:Include module="Individual Comment">
+          <mt:else>
+            <mt:Include module="Individual Comment" use_html="1">
+         </mt:If>
+        </mt:If>
+        <mt:If name="message">
+          <mt:If name="request.json">
+      {
+      "message": "<$mt:var name="message" encode_json="1"$>"
+      }
+          <mt:Else>
+            <div id="comment-error" class="message"><p><$mt:var name="message"$></p></div></mt:If></mt:If>
+      <mt:Else>
+      <html>
+        <head>
+          <meta http-equiv="refresh" content="0;URL=<mt:EntryPermalink escape="html">?r=<mt:Date format="%S%H%M">">
+        </head>
+      </html>
+      </mt:If>
+
+3) Create a template module called "Individual Comment." Its contents should be:
+
+      <mt:section trim="1">
+      <mt:SetVarBlock name="current_comment"><$mt:CommentID$></mt:SetVarBlock>
+      <mt:setvarblock name="comment_html">
+        <div comment_id="<$mt:CommentID$>" id="comment-<$mt:CommentID$>" class="pkg comment<mt:if name="comment_new" eq="$current_comment"> comment-highlight</mt:if><mt:IfCommentParent> reply</mt:IfCommentParent><mt:IfCommenterIsEntryAuthor> by-author</mt:IfCommenterIsEntryAuthor> depth-<$mt:var name="depth"$>">
+        <mt:setvarblock name="commenterlink"><$mt:CommentAuthorLink$></mt:setvarblock>
+          <p class="author">
+            <mt:IfCommentParent>
+              <span class="vcard"><$mt:var name="commenterlink"$></span> said:</a>
+            <mt:else>
+              <span class="vcard"><$mt:var name="commenterlink"$> said:</span>
+            </mt:IfCommentParent>
+          </p>
+          <div class="comment-content pkg">
+            <div class="comment-text"><$MTCommentBody$></div>
+            <div class="comment-footer">
+              <div class="date">Posted on <a href="<$mt:CommentLink$>"><abbr class="published" title="<$MTCommentDate format_name="iso8601"$>"><$MTCommentDate$></abbr></a></div>
+              <div class="actions pkg">
+                <MTIfCommentsAccepted>
+                <a href="javascript:void(0);" class="reply" title="Reply">Reply</a>
+                </MTIfCommentsAccepted>
+              </div>
+            </div>
+          </div>
+        </div>
+      </mt:setvarblock>
+      </mt:section><mt:if name="use_html">
+        <$mt:var name="comment_html"$>
+      <mt:else>{
+        "id":            "<$mt:CommentID encode_json="1"$>",
+        "date":          "<$mt:CommentDate encode_json="1"$>",
+        "text":          "<$mt:CommentBody remove_html="1" encode_json="1"$>",
+        "comment_count": "<mt:CommentEntry><$mt:EntryCommentCount singular="1 Comment" plural="# Comments" none="No Comments" encode_json="1"$></mt:CommentEntry>",
+        "commenter":     "<$mt:CommenterName encode_json="1"$>",
+        "commenter_url": "<$mt:CommentAuthorLink encode_json="1"$>",
+        "parent":        "<mt:IfCommentParent><mt:CommentParent><$mt:CommentID$></mt:CommentParent><mt:else>0</mt:IfCommentParent>",
+        "html":          "<$mt:var name="comment_html" encode_json="1"$>"
+      }
+      </mt:if>
+
 ## Methods
 
 ### `commentForm`
